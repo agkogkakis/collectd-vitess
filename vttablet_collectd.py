@@ -50,12 +50,11 @@ class Vttablet(util.BaseCollector):
         self.process_metric(memstats, 'GCCPUFraction', 'counter', prefix='GC.', alt_name='CPUFraction')
         self.process_metric(memstats, 'PauseTotalNs', 'counter', prefix='GC.')
 
-        # Tracking usage of the various connection pools
+        # Tracking usage of the connection pools used by apps
         self.process_pool_data(json_data, 'Conn')
-        self.process_pool_data(json_data, 'AppConn')
-        self.process_pool_data(json_data, 'DbaConn')
         self.process_pool_data(json_data, 'StreamConn')
         self.process_pool_data(json_data, 'Transaction')
+        self.process_pool_data(json_data, 'FoundRows')
 
         # If enabled, track histogram of number of results returned from user queries
         if self.include_results_histogram:
