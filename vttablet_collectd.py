@@ -127,6 +127,7 @@ class Vttablet(util.BaseCollector):
 
         if self.include_heartbeat:
             self.process_metric(json_data, 'HeartbeatCumulativeLagNs', 'counter')
+            self.process_metric(json_data, 'HeartbeatCurrentLagNs', 'counter')
             self.process_metric(json_data, 'HeartbeatReads', 'counter')
             self.process_metric(json_data, 'HeartbeatReadErrors', 'counter')
             self.process_metric(json_data, 'HeartbeatWrites', 'counter')
