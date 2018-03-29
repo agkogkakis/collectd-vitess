@@ -8,6 +8,7 @@ NAME = 'vttablet'
 class Vttablet(util.BaseCollector):
     def __init__(self, collectd, json_provider=None, verbose=False, interval=None):
         super(Vttablet, self).__init__(collectd, NAME, 15101, json_provider, verbose, interval)
+        self.include_per_table_stats = True
         self.include_per_user_timings = True
         self.include_streamlog_stats = True
         self.include_acl_stats = True
@@ -20,6 +21,8 @@ class Vttablet(util.BaseCollector):
         for node in conf.children:
             if node.key == 'IncludeResultsHistogram':
                 self.include_results_histogram = util.boolval(node.values[0])
+            elif node.key == 'IncludeStatsPerTable':
+                self.include_per_table_stats = util.boolval(node.values[0])
             elif node.key == 'IncludeTimingsPerUser':
                 self.include_per_user_timings = util.boolval(node.values[0])
             elif node.key == 'IncludeStreamLog':
@@ -75,15 +78,16 @@ class Vttablet(util.BaseCollector):
         for metric in ['DataFree', 'DataLength', 'IndexLength', 'TableRows']:
             self.process_metric(json_data, metric, 'gauge', parse_tags=['table'])
 
-        # Tracks counts and timings of user queries by user, table, and type
-        user_table_tags = ['table', 'user', 'type']
-        self.process_metric(json_data, 'UserTableQueryCount', 'counter', parse_tags=user_table_tags)
-        self.process_metric(json_data, 'UserTableQueryTimesNs', 'counter', alt_name='UserTableQueryTime', parse_tags=user_table_tags, transformer=util.nsToMs)
+        if self.include_per_table_stats:
+            # Tracks counts and timings of user queries by user, table, and type
+            user_table_tags = ['table', 'user', 'type']
+            self.process_metric(json_data, 'UserTableQueryCount', 'counter', parse_tags=user_table_tags)
+            self.process_metric(json_data, 'UserTableQueryTimesNs', 'counter', alt_name='UserTableQueryTime', parse_tags=user_table_tags, transformer=util.nsToMs)
 
-        # Tracks counts and timings of user transactions by user and type
-        user_tx_tags = ['user', 'type']
-        self.process_metric(json_data, 'UserTransactionCount', 'counter', parse_tags=user_tx_tags)
-        self.process_metric(json_data, 'UserTransactionTimesNs', 'counter', alt_name='UserTransactionTime', parse_tags=user_tx_tags, transformer=util.nsToMs)
+            # Tracks counts and timings of user transactions by user and type
+            user_tx_tags = ['user', 'type']
+            self.process_metric(json_data, 'UserTransactionCount', 'counter', parse_tags=user_tx_tags)
+            self.process_metric(json_data, 'UserTransactionTimesNs', 'counter', alt_name='UserTransactionTime', parse_tags=user_tx_tags, transformer=util.nsToMs)
 
         # Tracks a variety of metrics for timing of the various layers of execution
         # MySQL is how long it takes to actually execute in MySQL. While Queries is the total time with vitess overhead
