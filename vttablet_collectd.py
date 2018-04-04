@@ -8,7 +8,7 @@ NAME = 'vttablet'
 class Vttablet(util.BaseCollector):
     def __init__(self, collectd, json_provider=None, verbose=False, interval=None):
         super(Vttablet, self).__init__(collectd, NAME, 15101, json_provider, verbose, interval)
-        self.include_per_table_stats = True
+        self.include_per_table_per_user_stats = True
         self.include_per_user_timings = True
         self.include_streamlog_stats = True
         self.include_acl_stats = True
@@ -21,8 +21,8 @@ class Vttablet(util.BaseCollector):
         for node in conf.children:
             if node.key == 'IncludeResultsHistogram':
                 self.include_results_histogram = util.boolval(node.values[0])
-            elif node.key == 'IncludeStatsPerTable':
-                self.include_per_table_stats = util.boolval(node.values[0])
+            elif node.key == 'IncludeStatsPerTablePerUser':
+                self.include_per_table_per_user_stats = util.boolval(node.values[0])
             elif node.key == 'IncludeTimingsPerUser':
                 self.include_per_user_timings = util.boolval(node.values[0])
             elif node.key == 'IncludeStreamLog':
@@ -78,7 +78,7 @@ class Vttablet(util.BaseCollector):
         for metric in ['DataFree', 'DataLength', 'IndexLength', 'TableRows']:
             self.process_metric(json_data, metric, 'gauge', parse_tags=['table'])
 
-        if self.include_per_table_stats:
+        if self.include_per_table_per_user_stats:
             # Tracks counts and timings of user queries by user, table, and type
             user_table_tags = ['table', 'user', 'type']
             self.process_metric(json_data, 'UserTableQueryCount', 'counter', parse_tags=user_table_tags)
