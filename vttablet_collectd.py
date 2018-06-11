@@ -43,7 +43,7 @@ class Vttablet(util.BaseCollector):
 
         # Health-related metrics.
         # TabletState is an integer mapping to one of SERVING (2), NOT_SERVING (0, 1, 3), or SHUTTING_DOWN (4)
-        self.process_metric(json_data, 'TabletState', 'gauge')
+        self.process_metric(json_data, 'TabletState', 'gauge', base_tags={'TabletType': json_data['TabletType'].lower()},)
         # Report on whether this is a master
         self.process_metric(json_data, 'TabletType', 'gauge', alt_name='IsMaster', transformer=lambda val: 1 if val.lower() == 'master' else 0)
         self.process_metric(json_data, 'HealthcheckErrors', 'counter', parse_tags=['keyspace', 'shard', 'type'])
