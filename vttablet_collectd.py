@@ -130,7 +130,6 @@ class Vttablet(util.BaseCollector):
                     self.emitter.emit("UnprivilegedDDL", value, 'counter', tags)
 
         if self.include_heartbeat:
-            self.process_metric(json_data, 'HeartbeatCumulativeLagNs', 'counter')
             self.process_metric(json_data, 'HeartbeatCurrentLagNs', 'gauge')
             self.process_metric(json_data, 'HeartbeatReads', 'counter')
             self.process_metric(json_data, 'HeartbeatReadErrors', 'counter')
