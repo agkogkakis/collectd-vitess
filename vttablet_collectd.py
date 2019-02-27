@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import time
 import util
 
 NAME = 'vttablet'
@@ -58,6 +57,10 @@ class Vttablet(util.BaseCollector):
         self.process_pool_data(json_data, 'StreamConn')
         self.process_pool_data(json_data, 'Transaction')
         self.process_pool_data(json_data, 'FoundRows')
+
+        # Tracking ExecuteOptions_DBA transactions
+        self.process_metric(json_data, 'TransactionPoolDbaInUse', 'gauge')
+        self.process_metric(json_data, 'TransactionPoolDbaTotal', 'gauge')
 
         # If enabled, track histogram of number of results returned from user queries
         if self.include_results_histogram:
