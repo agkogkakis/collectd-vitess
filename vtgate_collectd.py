@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-#!/usr/bin/python
-
 import time
 import util
 import mock
@@ -14,9 +12,11 @@ class Vtgate(util.BaseCollector):
 
     def configure_callback(self, conf):
         super(Vtgate, self).configure_callback(conf)
+        self.include_query_timings = False
 
         for node in conf.children:
-            pass
+            if node.key == 'IncludeQueryTimings':
+                self.include_query_timings = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -65,6 +65,12 @@ class Vtgate(util.BaseCollector):
         parse_tags = ['Keyspace', 'ShardName', 'Reason']
         self.process_metric(json_data, 'BufferRequestsEvicted', 'counter', parse_tags=parse_tags)
         self.process_metric(json_data, 'BufferRequestsSkipped', 'counter', parse_tags=parse_tags)
+
+        if self.include_query_timings:
+            query_timing_tags = ['Median', 'NinetyNinth']
+            if "AggregateQueryTimings" in json_data:
+                timing_json = json_data["AggregateQueryTimings"]
+                self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
 
     def process_rates(self, json_data, metric_name, tag_name):
         rates = json_data[metric_name]

@@ -99,9 +99,10 @@ class CollectdLogger(logging.Logger):
 
 # Set up logging
 logging.setLoggerClass(CollectdLogger)
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-logger.propagate = False
+logger.propagate = True
 
 def log(message):
     logger.info(message)
@@ -330,7 +331,7 @@ class BaseCollector(object):
             elif node.key == 'Verbose':
                 self.verbose = boolval(node.values[0])
             elif node.key == 'IncludeTimingHistograms':
-                self.include_timing_histograms = util.boolval(node.values[0])
+                self.include_timing_histograms = boolval(node.values[0])
 
         handler = CollectdLogHandler(self.collectd, self.name, self.verbose)
         handler.register()
@@ -386,6 +387,14 @@ class BaseCollector(object):
                 self.emitter.emit("%s%s%sHistogram.%s" % (prefix, alt_name if alt_name is not None else upperSnakeToCamel(metric_name), suffix, key), value, 'gauge', tags)
         except KeyError, e:
             logger.warning("[KeyError] process_histogram: Failed to get metric_name '%s' from json data. Skipping." % metric_name)
+
+    def process_timing_quartile_metric(self, json_data, metric_name):
+        try:
+            for name in ["Median", "NinetyNinth"]:
+                value = nsToMs(json_data[metric_name][name])
+                self.emitter.emit("%s.%s" % (metric_name, name), value, 'gauge')
+        except KeyError, e:
+            logger.warning("[KeyError] process_timing_quartile_metric: Failed to get metric_name '%s' from json data. Skipping." % metric_name)
 
     def process_metric(self, json_data, metric_name, type, prefix="", alt_name=None, base_tags=dict(), parse_tags=dict(), transformer=None):
         try:
