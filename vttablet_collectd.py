@@ -14,6 +14,7 @@ class Vttablet(util.BaseCollector):
         self.include_results_histogram = True
         self.include_reparent_timings = True
         self.include_heartbeat = False
+        self.include_query_timings = False
 
     def configure_callback(self, conf):
         super(Vttablet, self).configure_callback(conf)
@@ -32,6 +33,8 @@ class Vttablet(util.BaseCollector):
                 self.include_reparent_timings = util.boolval(node.values[0])
             elif node.key == 'IncludeHeartbeat':
                 self.include_heartbeat = util.boolval(node.values[0])
+            elif node.key == 'IncludeQueryTimings':
+                self.include_query_timings = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -138,6 +141,15 @@ class Vttablet(util.BaseCollector):
             self.process_metric(json_data, 'HeartbeatReadErrors', 'counter')
             self.process_metric(json_data, 'HeartbeatWrites', 'counter')
             self.process_metric(json_data, 'HeartbeatWriteErrors', 'counter')
+
+
+        if self.include_query_timings:
+            query_timing_tags = ['Median', 'NinetyNinth']
+            if "AggregateQueryTimings" in json_data:
+                timing_json = json_data["AggregateQueryTimings"]
+                self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
+                self.process_timing_quartile_metric(timing_json, "MysqlQueryTime")
+                self.process_timing_quartile_metric(timing_json, "ConnectionAcquisitionTime")
 
     def process_pool_data(self, json_data, pool_name):
         self.process_metric(json_data, '%sPoolAvailable' % pool_name, 'gauge')
