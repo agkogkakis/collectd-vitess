@@ -17,6 +17,8 @@ class Vtgate(util.BaseCollector):
         for node in conf.children:
             if node.key == 'IncludeQueryTimings':
                 self.include_query_timings = util.boolval(node.values[0])
+            elif node.key == 'IncludePerKeyspaceMetrics':
+                self.include_per_keyspace_metrics = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -24,11 +26,6 @@ class Vtgate(util.BaseCollector):
         # Current connections and total accepted
         self.process_metric(json_data, 'ConnAccepted', 'counter')
         self.process_metric(json_data, 'ConnCount', 'gauge')
-
-        # healthcheck metrics, both errors and connections
-        hc_tags = ['keyspace', 'shard', 'type']
-        self.process_metric(json_data, 'HealthcheckErrors', 'counter', parse_tags=hc_tags)
-        self.process_metric(json_data, 'HealthcheckConnections', 'gauge', parse_tags=hc_tags)
 
         # GC Stats
         memstats = json_data['memstats']
@@ -39,38 +36,48 @@ class Vtgate(util.BaseCollector):
         self.process_metric(json_data, 'FilteredReplicationUnfriendlyStatementsCount', 'counter')
 
         self.process_rates(json_data, 'QPSByDbType', 'DbType')
-        self.process_rates(json_data, 'QPSByKeyspace', 'Keyspace')
         self.process_rates(json_data, 'QPSByOperation', 'Operation')
         self.process_rates(json_data, 'ErrorsByDbType', 'DbType')
-        self.process_rates(json_data, 'ErrorsByKeyspace', 'Keyspace')
         self.process_rates(json_data, 'ErrorsByOperation', 'Operation')
         self.process_rates(json_data, 'ErrorsByCode', 'Code')
 
-        # Subtracting VtgateApi from VttabletCall times below should allow seeing what overhead vtgate adds
-        parse_tags = ['Operation', 'Keyspace', 'DbType']
-        self.process_timing_data(json_data, 'VtgateApi', parse_tags=parse_tags)
-        parse_tags = ['Operation', 'Keyspace', 'DbType', 'Code']
-        self.process_metric(json_data, 'VtgateApiErrorCounts', 'counter', parse_tags=parse_tags)
+        if self.include_per_keyspace_metrics:
+            self.process_rates(json_data, 'QPSByKeyspace', 'Keyspace')
+            self.process_rates(json_data, 'ErrorsByKeyspace', 'Keyspace')
 
-        parse_tags = ['Operation', 'Keyspace', 'ShardName', 'DbType']
-        self.process_metric(json_data, 'VttabletCallErrorCount', 'counter', parse_tags=parse_tags)
-        self.process_timing_data(json_data, 'VttabletCall', parse_tags=parse_tags)
+            # healthcheck metrics, both errors and connections
+            hc_tags = ['keyspace', 'shard', 'type']
+            self.process_metric(json_data, 'HealthcheckErrors', 'counter', parse_tags=hc_tags)
+            self.process_metric(json_data, 'HealthcheckConnections', 'gauge', parse_tags=hc_tags)
 
-        parse_tags = ['Keyspace', 'ShardName']
-        self.process_metric(json_data, 'BufferUtilizationSum', 'counter', parse_tags=parse_tags)
-        self.process_metric(json_data, 'BufferStarts', 'counter', parse_tags=parse_tags)
-        self.process_metric(json_data, 'BufferRequestsBuffered', 'counter', parse_tags=parse_tags)
-        self.process_metric(json_data, 'BufferRequestsDrained', 'counter', parse_tags=parse_tags)
+            # Subtracting VtgateApi from VttabletCall times below should allow seeing what overhead vtgate adds
+            parse_tags = ['Operation', 'Keyspace', 'DbType']
+            self.process_timing_data(json_data, 'VtgateApi', parse_tags=parse_tags)
+            parse_tags = ['Operation', 'Keyspace', 'DbType', 'Code']
+            self.process_metric(json_data, 'VtgateApiErrorCounts', 'counter', parse_tags=parse_tags)
 
-        parse_tags = ['Keyspace', 'ShardName', 'Reason']
-        self.process_metric(json_data, 'BufferRequestsEvicted', 'counter', parse_tags=parse_tags)
-        self.process_metric(json_data, 'BufferRequestsSkipped', 'counter', parse_tags=parse_tags)
+            parse_tags = ['Operation', 'Keyspace', 'ShardName', 'DbType']
+            self.process_metric(json_data, 'VttabletCallErrorCount', 'counter', parse_tags=parse_tags)
+            self.process_timing_data(json_data, 'VttabletCall', parse_tags=parse_tags)
+
+            parse_tags = ['Keyspace', 'ShardName']
+            self.process_metric(json_data, 'BufferUtilizationSum', 'counter', parse_tags=parse_tags)
+            self.process_metric(json_data, 'BufferStarts', 'counter', parse_tags=parse_tags)
+            self.process_metric(json_data, 'BufferRequestsBuffered', 'counter', parse_tags=parse_tags)
+            self.process_metric(json_data, 'BufferRequestsDrained', 'counter', parse_tags=parse_tags)
+
+            parse_tags = ['Keyspace', 'ShardName', 'Reason']
+            self.process_metric(json_data, 'BufferRequestsEvicted', 'counter', parse_tags=parse_tags)
+            self.process_metric(json_data, 'BufferRequestsSkipped', 'counter', parse_tags=parse_tags)
 
         if self.include_query_timings:
             query_timing_tags = ['Median', 'NinetyNinth']
             if "AggregateQueryTimings" in json_data:
                 timing_json = json_data["AggregateQueryTimings"]
-                self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
+                if "TotalQueryTime" in timing_json:
+                    self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
+                if "TotalRequestTime" in timing_json:
+                    self.process_timing_quartile_metric(timing_json, "TotalRequestTime")
 
     def process_rates(self, json_data, metric_name, tag_name):
         rates = json_data[metric_name]
