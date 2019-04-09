@@ -13,6 +13,7 @@ class Vtgate(util.BaseCollector):
     def configure_callback(self, conf):
         super(Vtgate, self).configure_callback(conf)
         self.include_query_timings = False
+        self.include_per_keyspace_metrics = False
 
         for node in conf.children:
             if node.key == 'IncludeQueryTimings':
