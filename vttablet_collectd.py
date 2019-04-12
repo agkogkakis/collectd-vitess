@@ -15,6 +15,7 @@ class Vttablet(util.BaseCollector):
         self.include_reparent_timings = True
         self.include_heartbeat = False
         self.include_query_timings = False
+        self.include_per_table_stats = True
 
     def configure_callback(self, conf):
         super(Vttablet, self).configure_callback(conf)
@@ -35,6 +36,8 @@ class Vttablet(util.BaseCollector):
                 self.include_heartbeat = util.boolval(node.values[0])
             elif node.key == 'IncludeQueryTimings':
                 self.include_query_timings = util.boolval(node.values[0])
+            elif node.key == 'IncludePerTableStats':
+                self.include_per_table_stats = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -73,16 +76,17 @@ class Vttablet(util.BaseCollector):
         for metric in ['Errors', 'InternalErrors', 'Kills']:
             self.process_metric(json_data, metric, 'counter', parse_tags=['type'])
 
-        # Counters tagged by table and type, for tracking counts of the various query types, times, and ways in which a query can fail
-        # all broken down by table
-        for metric in ['QueryCounts', 'QueryErrorCounts', 'QueryRowCounts', 'QueryTimesNs']:
-            alt_name = 'QueryTimes' if metric == 'QueryTimeNs' else None
-            transformer = util.nsToMs if metric == 'QueryTimesNs' else None
-            self.process_metric(json_data, metric, 'counter', alt_name=alt_name, parse_tags=['table', 'type'], transformer=transformer)
+        if self.include_per_table_stats:
+          # Counters tagged by table and type, for tracking counts of the various query types, times, and ways in which a query can fail
+          # all broken down by table
+          for metric in ['QueryCounts', 'QueryErrorCounts', 'QueryRowCounts', 'QueryTimesNs']:
+              alt_name = 'QueryTimes' if metric == 'QueryTimeNs' else None
+              transformer = util.nsToMs if metric == 'QueryTimesNs' else None
+              self.process_metric(json_data, metric, 'counter', alt_name=alt_name, parse_tags=['table', 'type'], transformer=transformer)
 
-        # Tracks data from information_schema about the size of tables
-        for metric in ['DataFree', 'DataLength', 'IndexLength', 'TableRows']:
-            self.process_metric(json_data, metric, 'gauge', parse_tags=['table'])
+          # Tracks data from information_schema about the size of tables
+          for metric in ['DataFree', 'DataLength', 'IndexLength', 'TableRows']:
+              self.process_metric(json_data, metric, 'gauge', parse_tags=['table'])
 
         if self.include_per_table_per_user_stats:
             # Tracks counts and timings of user queries by user, table, and type
@@ -123,7 +127,7 @@ class Vttablet(util.BaseCollector):
             self.process_metric(json_data, 'StreamlogDeliveryDroppedMessages', 'counter', parse_tags=parse_tags)
 
         # Tracks the impact of ACLs on user queries
-        if self.include_acl_stats:
+        if self.include_acl_stats and self.include_per_table_stats:
             acl_tags = ['table', 'plan', 'id', 'user']
             self.process_metric(json_data, 'TableACLAllowed', 'counter', parse_tags=acl_tags)
             self.process_metric(json_data, 'TableACLDenied', 'counter', parse_tags=acl_tags)
