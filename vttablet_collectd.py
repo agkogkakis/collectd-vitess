@@ -160,6 +160,8 @@ class Vttablet(util.BaseCollector):
         self.process_metric(json_data, '%sPoolCapacity' % pool_name, 'gauge')
         self.process_metric(json_data, '%sPoolWaitCount' % pool_name, 'counter')
         self.process_metric(json_data, '%sPoolWaitTime' % pool_name, 'counter', transformer=util.nsToMs)
+        self.process_metric(json_data, '%sPoolIdleClosed' % pool_name, 'counter')
+        self.process_metric(json_data, '%sPoolExhausted' % pool_name, 'counter')
 
 if __name__ == '__main__':
     util.run_local(NAME, Vttablet)
