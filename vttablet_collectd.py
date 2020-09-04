@@ -99,15 +99,8 @@ class Vttablet(util.BaseCollector):
             self.process_metric(json_data, 'UserTransactionCount', 'counter', parse_tags=user_tx_tags)
             self.process_metric(json_data, 'UserTransactionTimesNs', 'counter', alt_name='UserTransactionTime', parse_tags=user_tx_tags, transformer=util.nsToMs)
 
-        # Tracks a variety of metrics for timing of the various layers of execution
-        # MySQL is how long it takes to actually execute in MySQL. While Queries is the total time with vitess overhead
         # Waits tracks instances where we are able to consolidate identical queries while waiting for a connection
-        self.process_timing_data(json_data, 'Mysql')
-        self.process_timing_data(json_data, 'Queries')
-        self.process_timing_data(json_data, 'Transactions')
         self.process_timing_data(json_data, 'Waits')
-        if self.include_reparent_timings:
-            self.process_timing_data(json_data, 'ExternalReparents')
 
         # MySQL timings above, broken down by user
         if self.include_per_user_timings:
