@@ -348,29 +348,30 @@ class BaseCollector(object):
         json = self.json_provider.get_json()
         self.process_data(json)
 
-    def process_timing_data(self, json_data, timing_name, parse_tags=None):
+    def process_timing_data(self, json_data, timing_name, parse_tags=None, process_histograms=True):
         try:
             timing_values = json_data[timing_name]
             self.process_metric(timing_values, 'TotalCount', 'counter', prefix=timing_name)
             self.process_metric(timing_values, 'TotalTime', 'counter', prefix=timing_name, transformer=nsToMs)
 
-            for key, histogram in timing_values['Histograms'].items():
-                if parse_tags:
-                    tags = _extract_tags(key, tag_list=parse_tags)
-                    prefix = timing_name
-                else:
-                    tags = None
-                    prefix = "%s%s" % (timing_name, upperSnakeToCamel(key))
-                self.process_metric(histogram, 'Count', 'counter', prefix=prefix, base_tags=tags)
-                self.process_metric(histogram, 'Time', 'counter', prefix=prefix, base_tags=tags, transformer=nsToMs)
+            if process_histograms: 
+                for key, histogram in timing_values['Histograms'].items():
+                    if parse_tags:
+                        tags = _extract_tags(key, tag_list=parse_tags)
+                        prefix = timing_name
+                    else:
+                        tags = None
+                        prefix = "%s%s" % (timing_name, upperSnakeToCamel(key))
+                    self.process_metric(histogram, 'Count', 'counter', prefix=prefix, base_tags=tags)
+                    self.process_metric(histogram, 'Time', 'counter', prefix=prefix, base_tags=tags, transformer=nsToMs)
 
-                if self.include_timing_histograms:
-                    def nsKeysToMs(key):
-                        if key.isdigit():
-                            return "%d" % nsToMs(long(key))
-                        return key
+                    if self.include_timing_histograms:
+                        def nsKeysToMs(key):
+                            if key.isdigit():
+                                return "%d" % nsToMs(long(key))
+                            return key
 
-                    self.process_histogram(timing_values['Histograms'], key, prefix=timing_name, alt_name="", suffix="Time", tags=tags, key_transformer=nsKeysToMs)
+                        self.process_histogram(timing_values['Histograms'], key, prefix=timing_name, alt_name="", suffix="Time", tags=tags, key_transformer=nsKeysToMs)
         except KeyError, e:
             logger.warning("[KeyError] process_timing_data: Failed to get timing_name '%s' from json data. Skipping." % timing_name)
 
