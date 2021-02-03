@@ -16,6 +16,7 @@ class Vttablet(util.BaseCollector):
         self.include_heartbeat = False
         self.include_query_timings = False
         self.include_per_table_stats = True
+        self.include_vtickets_stats = False
 
     def configure_callback(self, conf):
         super(Vttablet, self).configure_callback(conf)
@@ -38,6 +39,8 @@ class Vttablet(util.BaseCollector):
                 self.include_query_timings = util.boolval(node.values[0])
             elif node.key == 'IncludePerTableStats':
                 self.include_per_table_stats = util.boolval(node.values[0])
+            elif node.key == 'IncludeVTicketsStats':
+                self.include_vtickets_stats = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -154,6 +157,18 @@ class Vttablet(util.BaseCollector):
                 self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
                 self.process_timing_quartile_metric(timing_json, "MysqlQueryTime")
                 self.process_timing_quartile_metric(timing_json, "ConnectionAcquisitionTime")
+
+        if self.include_vtickets_stats:
+            table_tag = ['table']
+            self.process_metric(json_data, 'VTicketsUsed', 'counter', parse_tags=table_tag)
+            self.process_metric(json_data, 'VTicketsRemaining', 'gauge', parse_tags=table_tag)
+            self.process_metric(json_data, 'VTicketsRefills', 'counter', parse_tags=table_tag)
+            self.process_metric(json_data, 'VTicketsFailedRefills', 'counter', parse_tags=table_tag)
+            self.process_metric(json_data, 'VTicketsBlockingRefills', 'counter', parse_tags=table_tag)
+            query_timing_tags = ['Median', 'NinetyNinth']
+            if "VTicketsServiceCallsTimings" in json_data:
+                timing_json = json_data["VTicketsServiceCallsTimings"]
+                self.process_timing_quartile_metric(timing_json, "VTicketsFetchTime")
 
     def process_pool_data(self, json_data, pool_name):
         self.process_metric(json_data, '%sPoolAvailable' % pool_name, 'gauge')
