@@ -165,6 +165,7 @@ class Vttablet(util.BaseCollector):
             self.process_metric(json_data, 'VTicketsRefills', 'counter', parse_tags=table_tag)
             self.process_metric(json_data, 'VTicketsFailedRefills', 'counter', parse_tags=table_tag)
             self.process_metric(json_data, 'VTicketsBlockingRefills', 'counter', parse_tags=table_tag)
+            self.process_metric(json_data, 'VTicketsBatchSize', 'gauge', parse_tags=table_tag)
             query_timing_tags = ['Median', 'NinetyNinth']
             if "VTicketsServiceCallsTimings" in json_data:
                 timing_json = json_data["VTicketsServiceCallsTimings"]
