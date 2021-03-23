@@ -14,12 +14,15 @@ class Vtgate(util.BaseCollector):
         super(Vtgate, self).configure_callback(conf)
         self.include_query_timings = False
         self.include_per_keyspace_metrics = False
+        self.include_override_autoinc_stats = False
 
         for node in conf.children:
             if node.key == 'IncludeQueryTimings':
                 self.include_query_timings = util.boolval(node.values[0])
             elif node.key == 'IncludePerKeyspaceMetrics':
                 self.include_per_keyspace_metrics = util.boolval(node.values[0])
+            elif node.key == 'IncludeOverrideAutoIncStats':
+                self.include_override_autoinc_stats = util.boolval(node.values[0])
 
         self.register_read_callback()
 
@@ -79,6 +82,11 @@ class Vtgate(util.BaseCollector):
                     self.process_timing_quartile_metric(timing_json, "TotalQueryTime")
                 if "TotalRequestTime" in timing_json:
                     self.process_timing_quartile_metric(timing_json, "TotalRequestTime")
+
+        if self.include_override_autoinc_stats:
+            keyspace_tag = ['keyspaceName']
+            self.process_metric(json_data, 'AutoIncOverridden', 'counter', parse_tags=keyspace_tag)
+            self.process_metric(json_data, 'AutoIncAttemptedOverride', 'counter', parse_tags=keyspace_tag)
 
     def process_rates(self, json_data, metric_name, tag_name):
         rates = json_data[metric_name]
