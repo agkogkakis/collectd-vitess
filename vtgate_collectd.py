@@ -84,9 +84,9 @@ class Vtgate(util.BaseCollector):
                     self.process_timing_quartile_metric(timing_json, "TotalRequestTime")
 
         if self.include_override_autoinc_stats:
-            keyspace_tag = ['keyspaceName']
-            self.process_metric(json_data, 'AutoIncOverridden', 'counter', parse_tags=keyspace_tag)
-            self.process_metric(json_data, 'AutoIncAttemptedOverride', 'counter', parse_tags=keyspace_tag)
+            override_autoinc_tags = ['keyspaceName', 'table']
+            self.process_metric(json_data, 'AutoIncOverridden', 'counter', parse_tags=override_autoinc_tags)
+            self.process_metric(json_data, 'AutoIncAttemptedOverride', 'counter', parse_tags=override_autoinc_tags)
 
     def process_rates(self, json_data, metric_name, tag_name):
         rates = json_data[metric_name]
