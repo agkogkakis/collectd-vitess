@@ -3,6 +3,7 @@
 import time
 import util
 import mock
+from collections import defaultdict
 
 NAME = 'vtgate'
 
@@ -32,23 +33,24 @@ class VtgateGateway(util.BaseCollector):
 
 
 def group_tablets_by_keyspace(json_data):
-    keyspaces = {}
+    keyspaces = defaultdict(list)
     for keyspaceShardTabletType, tablets in json_data.items():
-        keyspaceName = extract_keyspace(keyspaceShardTabletType)
-        tabletType = extract_tablet_type(keyspaceShardTabletType)
-        if keyspaceName:
-            keyspaces.setdefault(keyspaceName, []).append({"tabletType": tabletType, "keyspace": tablets["Target"]["keyspace"], "shard": tablets["Target"]["keyspace"], "tabletsStats": tablets["TabletsStats"]})
+        keyspaceName, tabletType = extract_keyspace_tablet_type(keyspaceShardTabletType)
+        if keyspaceName and tabletType:
+            try:
+                keyspaces[keyspaceName].append({"tabletType": tabletType, "keyspace": tablets["Target"]["keyspace"], "shard": tablets["Target"]["shard"], "tabletsStats": tablets["TabletsStats"]})
+            except Exception as e:
+                util.log('Error while processing %s/%s %s' % (keyspaceName, tabletType, e))
     return keyspaces
 
 
-def extract_keyspace(keyspaceShardTabletType):
-    #format cell.keyspace.shard.tabletType
-    firstDot = keyspaceShardTabletType.index('.')
-    return keyspaceShardTabletType[firstDot + 1:keyspaceShardTabletType.index('.', firstDot + 1)]
-
-def extract_tablet_type(keyspaceShardTabletType):
-    #format cell.keyspace.shard.tabletType
-    return keyspaceShardTabletType[keyspaceShardTabletType.rindex('.') + 1:]
+def extract_keyspace_tablet_type(keyspaceShardTabletType):
+    try:
+        cell, keyspace, shard, tabletType = keyspaceShardTabletType.split('.')
+        return keyspace, tabletType
+    except ValueError:
+      util.log('Error while parsing keyspace/tabletType from %s' % keyspaceShardTabletType)
+      return "", ""
 
 if __name__ == '__main__':
     util.run_local(NAME, VtgateGateway)
