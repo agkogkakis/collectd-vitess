@@ -18,15 +18,37 @@ class VtgateGateway(util.BaseCollector):
         self.register_read_callback()
 
     def process_data(self, json_data):
-       for keyspaceShardTabletType, tablets in json_data.items():
-          if "MASTER" in keyspaceShardTabletType:
-            foundServing = False
-            for tablet in tablets['TabletsStats']:
-                if tablet['Up'] and tablet['Serving']:
-                    foundServing = True
-                    break
-            self.emitter.emit("servingMaster", 1 if foundServing else 0, 'gauge', {"ks": tablets['Target']['keyspace'], "shard": tablets['Target']['shard']})
-            
+        keyspaces = group_tablets_by_keyspace(json_data)
+
+        for keyspaceName, tablets in keyspaces.items():
+            foundServingMaster = False
+            for tabletsForType in tablets:
+                if "MASTER" == tabletsForType["tabletType"]:
+                    for tablet in tabletsForType['tabletsStats']:
+                        if tablet['Up'] and tablet['Serving']:
+                            foundServingMaster = True
+                            break
+            self.emitter.emit("servingMaster", 1 if foundServingMaster else 0, 'gauge', {"ks": tabletsForType["keyspace"], "shard": tabletsForType["shard"]})
+
+
+def group_tablets_by_keyspace(json_data):
+    keyspaces = {}
+    for keyspaceShardTabletType, tablets in json_data.items():
+        keyspaceName = extract_keyspace(keyspaceShardTabletType)
+        tabletType = extract_tablet_type(keyspaceShardTabletType)
+        if keyspaceName:
+            keyspaces.setdefault(keyspaceName, []).append({"tabletType": tabletType, "keyspace": tablets["Target"]["keyspace"], "shard": tablets["Target"]["keyspace"], "tabletsStats": tablets["TabletsStats"]})
+    return keyspaces
+
+
+def extract_keyspace(keyspaceShardTabletType):
+    #format cell.keyspace.shard.tabletType
+    firstDot = keyspaceShardTabletType.index('.')
+    return keyspaceShardTabletType[firstDot + 1:keyspaceShardTabletType.index('.', firstDot + 1)]
+
+def extract_tablet_type(keyspaceShardTabletType):
+    #format cell.keyspace.shard.tabletType
+    return keyspaceShardTabletType[keyspaceShardTabletType.rindex('.') + 1:]
 
 if __name__ == '__main__':
     util.run_local(NAME, VtgateGateway)
