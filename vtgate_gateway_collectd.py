@@ -23,13 +23,14 @@ class VtgateGateway(util.BaseCollector):
 
         for keyspaceName, tablets in keyspaces.items():
             foundServingMaster = False
-            for tabletsForType in tablets:
-                if "MASTER" == tabletsForType["tabletType"]:
-                    for tablet in tabletsForType['tabletsStats']:
-                        if tablet['Up'] and tablet['Serving']:
-                            foundServingMaster = True
-                            break
-            self.emitter.emit("servingMaster", 1 if foundServingMaster else 0, 'gauge', {"ks": tabletsForType["keyspace"], "shard": tabletsForType["shard"]})
+            if tablets:
+                for tabletsForType in tablets:
+                    if "MASTER" == tabletsForType["tabletType"]:
+                        for tablet in tabletsForType['tabletsStats']:
+                            if tablet['Up'] and tablet['Serving']:
+                                foundServingMaster = True
+                                break
+                self.emitter.emit("servingMaster", 1 if foundServingMaster else 0, 'gauge', {"ks": tabletsForType["keyspace"], "shard": tabletsForType["shard"]})
 
 
 def group_tablets_by_keyspace(json_data):
