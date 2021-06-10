@@ -20,7 +20,6 @@ class VtgateGateway(util.BaseCollector):
 
     def process_data(self, json_data):
         keyspaces = group_tablets_by_keyspace(json_data)
-
         for keyspaceName, tablets in keyspaces.items():
             foundServingMaster = False
             if tablets:
@@ -39,11 +38,18 @@ def group_tablets_by_keyspace(json_data):
         keyspaceName, tabletType = extract_keyspace_tablet_type(keyspaceShardTabletType)
         if keyspaceName and tabletType:
             try:
-                keyspaces[keyspaceName].append({"tabletType": tabletType, "keyspace": tablets["Target"]["keyspace"], "shard": tablets["Target"]["shard"], "tabletsStats": tablets["TabletsStats"]})
+                keyspaces[keyspaceName].append({"tabletType": tabletType, "keyspace": tablets["Target"]["keyspace"], "shard": normalize_vitess_shard(tablets["Target"]["shard"]), "tabletsStats": tablets["TabletsStats"]})
             except Exception as e:
                 util.log('Error while processing %s/%s %s' % (keyspaceName, tabletType, e))
     return keyspaces
 
+def normalize_vitess_shard(shard):
+    if shard.startswith("-"):
+        return "00" + shard
+    elif shard.endswith("-"):
+        return shard + "zz"
+    else:
+        return shard
 
 def extract_keyspace_tablet_type(keyspaceShardTabletType):
     try:
